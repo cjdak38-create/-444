@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>중3 수학 전과정 복습 및 학습 관리 시스템</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- KaTeX for Math Rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js" onload="renderMathInElement(document.body);"></script>
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body {
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+            background-color: #f8fafc;
+        }
+        .tab-btn.active {
+            border-bottom: 3px solid #4f46e5;
+            color: #4338ca;
+            font-weight: 700;
+        }
+        canvas {
+            touch-action: none;
+        }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col min-h-screen">
+
+    <!-- 0. LOGIN MODAL OVERLAY -->
+    <div id="login-modal" class="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-100 animate-fade-in">
+            <div class="bg-gradient-to-r from-indigo-600 to-violet-600 p-6 text-white text-center">
+                <div class="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 backdrop-blur-md">
+                    <i class="fa-solid fa-graduation-cap text-3xl text-yellow-300"></i>
+                </div>
+                <h2 class="text-2xl font-bold">중3 수학 학습 마스터</h2>
+                <p class="text-xs text-indigo-100 mt-1">학번과 이름을 입력하여 복습을 시작하세요</p>
+            </div>
+            
+            <form onsubmit="handleLogin(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">학번 (예: 30105 또는 3105)</label>
+                    <input type="text" id="input-student-id" required placeholder="예: 30105" 
+                           class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">이름</label>
+                    <input type="text" id="input-student-name" required placeholder="예: 홍길동" 
+                           class="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition text-sm">
+                </div>
+                
+                <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 transition duration-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> 학습 시작하기
+                </button>
+
+                <div class="pt-2 text-center">
+                    <button type="button" onclick="loginAsTeacher()" class="text-xs text-slate-500 hover:text-indigo-600 underline">
+                        선생님 / 관리자 모드로 접속하기
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-indigo-600 text-white shadow-lg sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <i class="fa-solid fa-graduation-cap text-2xl text-yellow-300"></i>
+                <div>
+                    <h1 class="text-lg md:text-xl font-bold tracking-tight">중3 수학 학습 마스터</h1>
+                    <p class="text-[10px] text-indigo-200">중학교 3학년 전과정 종합 복습 시스템</p>
+                </div>
+            </div>
+
+            <!-- Current Student Info / Logout Button -->
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-700/80 backdrop-blur border border-indigo-500 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <div class="w-7 h-7 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white" id="header-avatar">
+                        ?
+                    </div>
+                    <div class="text-xs">
+                        <div class="font-bold text-white" id="header-user-name">로그인 필요</div>
+                        <div class="text-[10px] text-indigo-200" id="header-user-id">-</div>
+                    </div>
+                </div>
+
+                <button onclick="logout()" title="로그아웃 / 다른 학생으로 전환" class="p-2 bg-indigo-700 hover:bg-indigo-800 rounded-xl text-indigo-100 hover:text-white transition">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <nav class="bg-white border-b border-slate-200 text-slate-600 shadow-sm overflow-x-auto">
+            <div class="max-w-7xl mx-auto flex whitespace-nowrap px-2">
+                <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active px-4 py-3 text-sm md:text-base flex items-center gap-2 hover:text-indigo-600 transition">
+                    <i class="fa-solid fa-chart-pie"></i> 나의 대시보드
+                </button>
+                <button onclick="switchTab('concept')" id="tab-concept" class="tab-btn px-4 py-3 text-sm md:text-base flex items-center gap-2 hover:text-indigo-600 transition">
+                    <i class="fa-solid fa-book-open"></i> 개념 정리
+                </button>
+                <button onclick="switchTab('quiz')" id="tab-quiz" class="tab-btn px-4 py-3 text-sm md:text-base flex items-center gap-2 hover:text-indigo-600 transition">
+                    <i class="fa-solid fa-pen-to-square"></i> 단원별 퀴즈
+                </button>
+                <button onclick="switchTab('exam')" id="tab-exam" class="tab-btn px-4 py-3 text-sm md:text-base flex items-center gap-2 hover:text-indigo-600 transition">
+                    <i class="fa-solid fa-clock"></i> 종합 모의고사
+                </button>
+                <button onclick="switchTab('visual')" id="tab-visual" class="tab-btn px-4 py-3 text-sm md:text-base flex items-center gap-2 hover:text-indigo-600 transition">
+                    <i class="fa-solid fa-chart-line"></i> 대화형 시각화
+                </button>
+                <button onclick="switchTab('notes')" id="tab-notes" class="tab-btn px-4 py-3 text-sm md:text-base flex items-center gap-2 hover:text-indigo-600 transition">
+                    <i class="fa-solid fa-file-circle-xmark"></i> 오답노트 (<span id="note-count">0</span>)
+                </button>
+                <button onclick="switchTab('teacher')" id="tab-teacher" class="tab-btn px-4 py-3 text-sm md:text-base flex items-center gap-2 hover:text-indigo-600 transition text-amber-600 font-semibold">
+                    <i class="fa-solid fa-chalkboard-user"></i> 선생님 모드
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="flex-grow max-w-7xl w-full mx-auto p-4 md:p-6">
+
+        <!-- 1. DASHBOARD TAB (학생별 진행 상황) -->
+        <section id="sec-dashboard" class="space-y-6">
+            <!-- Top Summary Card -->
+            <div class="bg-gradient-to-r from-indigo-900 via-indigo-800 to-purple-900 text-white p-6 rounded-3xl shadow-xl relative overflow-hidden">
+                <div class="relative z-10 flex flex-col md:flex-row justify-between md:items-center gap-6">
+                    <div class="space-y-2">
+                        <span class="bg-white/20 text-indigo-100 text-xs px-3 py-1 rounded-full font-medium">개별 학습 진행 상황</span>
+                        <h2 class="text-2xl md:text-3xl font-extrabold" id="dash-welcome">안녕하세요! 👋</h2>
+                        <p class="text-indigo-200 text-xs md:text-sm">꾸준한 복습이 수학 실력의 열쇠입니다. 오늘도 화이팅!</p>
+                        <div class="text-[11px] text-indigo-300 pt-1" id="dash-last-login">최근 학습: -</div>
+                    </div>
+
+                    <!-- Total Progress Circle / Bar -->
+                    <div class="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 min-w-[240px]">
+                        <div class="flex justify-between items-center text-xs text-indigo-200 mb-2">
+                            <span>전체 학습 달성도</span>
+                            <span class="font-bold text-yellow-300 text-base" id="dash-total-progress-text">0%</span>
+                        </div>
+                        <div class="w-full bg-slate-700/50 rounded-full h-3 overflow-hidden">
+                            <div id="dash-total-progress-bar" class="bg-gradient-to-r from-yellow-400 to-amber-500 h-full transition-all duration-500 rounded-full" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Stat Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-list-check"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 font-semibold">퀴즈 푼 문제 수</div>
+                        <div class="text-xl font-extrabold text-slate-800" id="dash-quiz-count">0문제</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-green-50 text-green-600 rounded-xl flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-bullseye"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 font-semibold">퀴즈 평균 정답률</div>
+                        <div class="text-xl font-extrabold text-slate-800" id="dash-quiz-acc">0%</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 font-semibold">모의고사 최고점 / 응시</div>
+                        <div class="text-xl font-extrabold text-slate-800" id="dash-exam-high">0점 (0회)</div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 flex items-center gap-4">
+                    <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-xl flex items-center justify-center text-xl font-bold">
+                        <i class="fa-solid fa-shapes"></i>
+                    </div>
+                    <div>
+                        <div class="text-xs text-slate-500 font-semibold">시각화 툴 체험</div>
+                        <div class="text-xl font-extrabold text-slate-800" id="dash-visual-status">0 / 2 완료</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unit Progress Cards -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-indigo-600"></i> 단원별 학습 현황
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="dash-unit-grid">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 개념 정리 탭 -->
+        <section id="sec-concept" class="hidden space-y-6">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-6 rounded-2xl shadow-md">
+                <h2 class="text-2xl font-bold mb-2">📐 중3 수학 핵심 개념 정리 카드</h2>
+                <p class="text-blue-100 text-sm md:text-base">각 단원의 핵심 공식과 주요 개념을 복습하세요. 카드를 클릭하면 상세 내용이 확장됩니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5" id="concept-container">
+                <!-- Javascript dynamic render -->
+            </div>
+        </section>
+
+        <!-- 3. 단원별 퀴즈 탭 -->
+        <section id="sec-quiz" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">🎯 단원별 퀴즈 풀이</h2>
+                        <p class="text-slate-500 text-sm">원하는 단원을 선택해 문제를 풀고 바로 해설을 확인하세요.</p>
+                    </div>
+                    <select id="quiz-unit-select" onchange="loadQuizUnit()" class="px-4 py-2 bg-slate-50 border border-slate-300 rounded-lg text-slate-700 font-medium focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <option value="all">전체 단원 랜덤</option>
+                        <option value="1">1. 제곱근과 실수</option>
+                        <option value="2">2. 다항식의 곱셈과 인수분해</option>
+                        <option value="3">3. 이차방정식</option>
+                        <option value="4">4. 이차함수와 그 그래프</option>
+                        <option value="5">5. 삼각비</option>
+                        <option value="6">6. 원의 성질</option>
+                    </select>
+                </div>
+
+                <!-- Scoreboard -->
+                <div class="grid grid-cols-3 gap-4 mb-6 bg-indigo-50 p-4 rounded-xl text-center">
+                    <div>
+                        <span class="text-xs text-indigo-600 font-semibold uppercase block">푼 문제</span>
+                        <span id="quiz-total" class="text-xl font-bold text-slate-800">0</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-green-600 font-semibold uppercase block">정답</span>
+                        <span id="quiz-correct" class="text-xl font-bold text-green-600">0</span>
+                    </div>
+                    <div>
+                        <span class="text-xs text-indigo-600 font-semibold uppercase block">정답률</span>
+                        <span id="quiz-rate" class="text-xl font-bold text-indigo-700">0%</span>
+                    </div>
+                </div>
+
+                <!-- Question Card -->
+                <div id="quiz-card" class="bg-slate-50 border border-slate-200 p-6 rounded-xl space-y-4">
+                    <!-- Dynamic Question -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 종합 모의고사 탭 -->
+        <section id="sec-exam" class="hidden space-y-6">
+            <div id="exam-start-box" class="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center space-y-4 max-w-xl mx-auto">
+                <div class="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                    ⏱️
+                </div>
+                <h2 class="text-2xl font-bold">중3 수학 종합 모의고사</h2>
+                <p class="text-slate-600 text-sm leading-relaxed">
+                    전 범위 10문항이 무작위로 출제됩니다.<br>
+                    제한시간은 <strong>15분</strong>이며 실전처럼 테스트할 수 있습니다.
+                </p>
+                <button onclick="startExam()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition shadow-md">
+                    모의고사 시작하기
+                </button>
+            </div>
+
+            <!-- Exam Running UI -->
+            <div id="exam-run-box" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+                <div class="flex justify-between items-center border-b pb-4">
+                    <div class="flex items-center gap-3">
+                        <span class="bg-indigo-600 text-white px-3 py-1 rounded-full text-xs font-bold" id="exam-progress">1 / 10</span>
+                        <span class="text-slate-600 text-sm font-semibold" id="exam-unit-title">단원명</span>
+                    </div>
+                    <div class="text-red-500 font-bold flex items-center gap-2 bg-red-50 px-3 py-1.5 rounded-lg border border-red-100">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="exam-timer">15:00</span>
+                    </div>
+                </div>
+
+                <div id="exam-question-body" class="space-y-4">
+                    <!-- Question injected by JS -->
+                </div>
+
+                <div class="flex justify-between pt-4 border-t">
+                    <button onclick="prevExamQ()" id="btn-exam-prev" class="px-4 py-2 border rounded-lg text-slate-600 hover:bg-slate-50 disabled:opacity-50">이전</button>
+                    <button onclick="nextExamQ()" id="btn-exam-next" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium">다음</button>
+                </div>
+            </div>
+
+            <!-- Exam Result UI -->
+            <div id="exam-result-box" class="hidden bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center space-y-6 max-w-2xl mx-auto">
+                <h2 class="text-2xl font-bold text-slate-800">🎉 모의고사 완료!</h2>
+                <div class="bg-slate-50 p-6 rounded-xl border border-slate-200 grid grid-cols-2 gap-4">
+                    <div>
+                        <div class="text-sm text-slate-500">최종 점수</div>
+                        <div class="text-3xl font-extrabold text-indigo-600" id="exam-score">0점</div>
+                    </div>
+                    <div>
+                        <div class="text-sm text-slate-500">소요 시간</div>
+                        <div class="text-3xl font-extrabold text-slate-700" id="exam-time-taken">00:00</div>
+                    </div>
+                </div>
+                <div id="exam-analysis" class="text-left bg-indigo-50 p-4 rounded-xl text-sm space-y-2">
+                    <!-- Analysis Summary -->
+                </div>
+                <button onclick="resetExam()" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition">
+                    다시 도전하기
+                </button>
+            </div>
+        </section>
+
+        <!-- 5. 대화형 시각화 도구 탭 -->
+        <section id="sec-visual" class="hidden space-y-8">
+            <!-- 5.1 이차함수 그래프 시뮬레이터 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-blue-100 text-blue-600 rounded-lg"><i class="fa-solid fa-chart-area text-xl"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold">1. 이차함수 그래프 시뮬레이터</h3>
+                            <p class="text-xs text-slate-500">표준형 $y = a(x-p)^2 + q$ 의 계수를 조절하여 그래프의 변화를 살펴보세요.</p>
+                        </div>
+                    </div>
+                    <span id="badge-quad-exp" class="px-3 py-1 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full">미완료</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Controls -->
+                    <div class="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                            <div class="flex justify-between text-sm font-semibold mb-1">
+                                <span>폭 및 방향 (a):</span>
+                                <span id="val-a" class="text-indigo-600 font-bold">1</span>
+                            </div>
+                            <input type="range" id="slider-a" min="-3" max="3" step="0.2" value="1" oninput="updateQuadratic()" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm font-semibold mb-1">
+                                <span>x축 평행이동 (p):</span>
+                                <span id="val-p" class="text-indigo-600 font-bold">0</span>
+                            </div>
+                            <input type="range" id="slider-p" min="-5" max="5" step="0.5" value="0" oninput="updateQuadratic()" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-sm font-semibold mb-1">
+                                <span>y축 평행이동 (q):</span>
+                                <span id="val-q" class="text-indigo-600 font-bold">0</span>
+                            </div>
+                            <input type="range" id="slider-q" min="-5" max="5" step="0.5" value="0" oninput="updateQuadratic()" class="w-full">
+                        </div>
+
+                        <div class="p-3 bg-white rounded-lg border border-slate-200 text-sm space-y-1">
+                            <div><strong>현재 식:</strong> <span id="quad-formula" class="text-indigo-600 font-bold">y = x²</span></div>
+                            <div><strong>꼭짓점:</strong> <span id="quad-vertex" class="text-indigo-600">(0, 0)</span></div>
+                            <div><strong>축의 방정식:</strong> <span id="quad-axis" class="text-indigo-600">x = 0</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Visualization -->
+                    <div class="lg:col-span-2 flex justify-center items-center bg-slate-900 rounded-xl p-2 relative">
+                        <canvas id="quadCanvas" width="500" height="350" class="w-full max-w-full h-auto rounded-lg"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5.2 삼각비 직각삼각형 시각화 -->
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex items-center justify-between border-b pb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-emerald-100 text-emerald-600 rounded-lg"><i class="fa-solid fa-shapes text-xl"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold">2. 삼각비 직각삼각형 시각화</h3>
+                            <p class="text-xs text-slate-500">기준각 $\theta$ (0° ~ 80°) 변화에 따른 삼각비의 실시간 수치와 변의 변화를 확인하세요.</p>
+                        </div>
+                    </div>
+                    <span id="badge-trig-exp" class="px-3 py-1 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full">미완료</span>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Controls -->
+                    <div class="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div>
+                            <div class="flex justify-between text-sm font-semibold mb-1">
+                                <span>기준각 ($\theta$):</span>
+                                <span id="val-deg" class="text-emerald-600 font-bold">30°</span>
+                            </div>
+                            <input type="range" id="slider-deg" min="5" max="80" value="30" oninput="updateTrig()" class="w-full">
+                        </div>
+
+                        <div class="p-3 bg-white rounded-lg border border-slate-200 space-y-2 text-sm">
+                            <div class="flex justify-between items-center border-b pb-1">
+                                <span>$\sin\theta = \frac{\text{높이}}{\text{빗변}}$</span>
+                                <span id="trig-sin" class="font-bold text-emerald-600">0.500</span>
+                            </div>
+                            <div class="flex justify-between items-center border-b pb-1">
+                                <span>$\cos\theta = \frac{\text{밑변}}{\text{빗변}}$</span>
+                                <span id="trig-cos" class="font-bold text-emerald-600">0.866</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span>$\tan\theta = \frac{\text{높이}}{\text{밑변}}$</span>
+                                <span id="trig-tan" class="font-bold text-emerald-600">0.577</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Canvas Visualization -->
+                    <div class="lg:col-span-2 flex justify-center items-center bg-slate-900 rounded-xl p-2">
+                        <canvas id="trigCanvas" width="500" height="350" class="w-full max-w-full h-auto rounded-lg"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. 오답노트 탭 -->
+        <section id="sec-notes" class="hidden space-y-6">
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-800">📝 개별 오답노트</h2>
+                        <p class="text-slate-500 text-sm">퀴즈 및 모의고사에서 틀린 문제가 자동 저장됩니다.</p>
+                    </div>
+                    <button onclick="clearNotes()" class="px-3 py-1.5 bg-red-50 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-100 border border-red-200">
+                        전체 삭제
+                    </button>
+                </div>
+
+                <div id="notes-container" class="space-y-4">
+                    <!-- Dynamic Incorrect List -->
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. 선생님/관리자 모드 탭 -->
+        <section id="sec-teacher" class="hidden space-y-6">
+            <div class="bg-amber-500 text-white p-6 rounded-2xl shadow-md flex justify-between items-center">
+                <div>
+                    <h2 class="text-2xl font-bold">👨‍🏫 선생님 / 학습 관리자 현황 조회</h2>
+                    <p class="text-amber-100 text-sm mt-1">등록된 모든 학생의 복습 진도 및 모의고사 성적을 조회하고 바로 학생으로 전환할 수 있습니다.</p>
+                </div>
+                <button onclick="clearAllStudentsData()" class="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white text-xs font-semibold rounded-lg">
+                    전체 학생 데이터 초기화
+                </button>
+            </div>
+
+            <!-- Student List Table -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b bg-slate-50 font-bold text-slate-700 flex justify-between items-center">
+                    <span>전체 학생 목록 (<span id="teacher-student-count">0</span>명)</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-600 border-b">
+                                <th class="p-3">학번</th>
+                                <th class="p-3">이름</th>
+                                <th class="p-3">진행 달성도</th>
+                                <th class="p-3">퀴즈 풀이</th>
+                                <th class="p-3">모의고사 최고점</th>
+                                <th class="p-3">최근 접속</th>
+                                <th class="p-3 text-center">작업</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-student-table" class="divide-y divide-slate-200">
+                            <!-- Dynamic Row Render -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-slate-400 text-center py-4 text-xs mt-auto">
+        중학교 3학년 수학 전과정 종합 복습 및 관리 시스템 &copy; 2026
+    </footer>
+
+    <!-- JS Logic Scripts -->
+    <script>
+        // --- 1. DATA DEFINITIONS ---
+        const CONCEPTS = [
+            {
+                unit: "1. 제곱근과 실수",
+                icon: "fa-square-root-variable",
+                items: [
+                    { title: "제곱근의 뜻과 성질", body: "양수 $a$에 대하여 제곱하여 $a$가 되는 수를 $a$의 제곱근이라고 함. $x^2 = a \\iff x = \\pm\\sqrt{a}$" },
+                    { title: "무리수와 실수", body: "유리수가 아닌 수(순환하지 않는 무한소수)를 무리수라 하고, 유리수와 무리수를 통틀어 실수라 함." },
+                    { title: "근호를 포함한 식의 계산", body: "$\\sqrt{a}\\sqrt{b} = \\sqrt{ab}$, $\\frac{\\sqrt{a}}{\\sqrt{b}} = \\sqrt{\\frac{a}{b}}$, 분모의 유리화: $\\frac{a}{\\sqrt{b}} = \\frac{a\\sqrt{b}}{b}$" }
+                ]
+            },
+            {
+                unit: "2. 다항식의 곱셈과 인수분해",
+                icon: "fa-brackets-curly",
+                items: [
+                    { title: "곱셈 공식", body: "$(a+b)^2 = a^2+2ab+b^2$<br>$(a+b)(a-b) = a^2 - b^2$<br>$(x+a)(x+b) = x^2 + (a+b)x + ab$" },
+                    { title: "인수분해의 기본", body: "하나의 다항식을 두 개 이상의 다항식의 곱으로 나타내는 것. 공통인수로 묶는 것이 첫 단계." },
+                    { title: "인수분해 공식", body: "$a^2 - b^2 = (a+b)(a-b)$<br>$x^2+(a+b)x+ab = (x+a)(x+b)$" }
+                ]
+            },
+            {
+                unit: "3. 이차방정식",
+                icon: "fa-calculator",
+                items: [
+                    { title: "이차방정식과 풀이", body: "$ax^2+bx+c=0 \\ (a \\neq 0)$ 형태.<br>1) 인수분해 이용<br>2) 제곱근 이용 및 완전제곱식 만들기" },
+                    { title: "근의 공식", body: "$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$" },
+                    { title: "근의 판별", body: "$b^2 - 4ac > 0$ (서로 다른 두 근), $= 0$ (중근), $< 0$ (근이 없음)" }
+                ]
+            },
+            {
+                unit: "4. 이차함수와 그 그래프",
+                icon: "fa-chart-line",
+                items: [
+                    { title: "이차함수 기본형 $y = ax^2$", body: "원점 $(0,0)$을 꼭짓점으로 하고 $y$축을 축으로 함. $a>0$ 이면 아래로 볼록, $a<0$ 이면 위로 볼록." },
+                    { title: "표준형 $y = a(x-p)^2 + q$", body: "$y=ax^2$을 $x$축으로 $p$, $y$축으로 $q$만큼 평행이동.<br>꼭짓점: $(p, q)$, 축의 방정식: $x = p$" },
+                    { title: "일반형 $y = ax^2 + bx + c$", body: "완전제곱식 형태로 변형하여 꼭짓점과 축의 방정식을 구함." }
+                ]
+            },
+            {
+                unit: "5. 삼각비",
+                icon: "fa-ruler-combined",
+                items: [
+                    { title: "삼각비의 정의", body: "직각삼각형에서<br>$\\sin A = \\frac{\\text{높이}}{\\text{빗변}}$, $\\cos A = \\frac{\\text{밑변}}{\\text{빗변}}$, $\\tan A = \\frac{\\text{높이}}{\\text{밑변}}$" },
+                    { title: "특수각의 삼각비", body: "$\\sin 30^\\circ = \\frac{1}{2}$, $\\sin 45^\\circ = \\frac{\\sqrt{2}}{2}$, $\\sin 60^\\circ = \\frac{\\sqrt{3}}{2}$<br>$\\cos 30^\\circ = \\frac{\\sqrt{3}}{2}$, $\\cos 45^\\circ = \\frac{\\sqrt{2}}{2}$, $\\cos 60^\\circ = \\frac{1}{2}$<br>$\\tan 30^\\circ = \\frac{1}{\\sqrt{3}}$, $\\tan 45^\\circ = 1$, $\\tan 60^\\circ = \\sqrt{3}$" }
+                ]
+            },
+            {
+                unit: "6. 원의 성질",
+                icon: "fa-circle-dot",
+                items: [
+                    { title: "원주각과 중심각", body: "한 호에 대한 원주각의 크기는 중심각의 크기의 $\\frac{1}{2}$이다." },
+                    { title: "원에 내접하는 사각형", body: "원에 내접하는 사각형의 마주 보는 두 내각의 크기의 합은 $180^\\circ$이다." },
+                    { title: "접선과 현이 이루는 각", body: "원의 접선과 그 접점을 지나 현이 이루는 각은 그 각의 내부에 있는 호에 대한 원주각의 크기와 같다." }
+                ]
+            }
+        ];
+
+        const QUESTION_BANK = [
+            // Unit 1
+            { id: 101, unit: "1", question: "$\\sqrt{81}$의 음의 제곱근을 구하시오.", type: "objective", options: ["-9", "-3", "3", "9"], answer: 1, explanation: "$\\sqrt{81} = 9$ 이므로, $9$의 음의 제곱근은 $-3$입니다." },
+            { id: 102, unit: "1", question: "다음 중 무리수인 것은?", type: "objective", options: ["$\\sqrt{0.49}$", "$\\sqrt{16}$", "$\\sqrt{5}$", "$0.\\dot{3}$"], answer: 2, explanation: "$\\sqrt{5}$는 순환하지 않는 무한소수이므로 무리수입니다." },
+            { id: 103, unit: "1", question: "$\\sqrt{12} + \\sqrt{27}$을 간단히 하시오.", type: "objective", options: ["$5\\sqrt{3}$", "$6\\sqrt{3}$", "$3\\sqrt{3}$", "$4\\sqrt{3}$"], answer: 0, explanation: "$\\sqrt{12} = 2\\sqrt{3}$, $\\sqrt{27} = 3\\sqrt{3}$ 이므로 합은 $5\\sqrt{3}$ 입니다." },
+
+            // Unit 2
+            { id: 201, unit: "2", question: "$(2x + 3y)^2$의 전개식에서 $xy$의 계수는?", type: "objective", options: ["6", "12", "9", "4"], answer: 1, explanation: "$(2x+3y)^2 = 4x^2 + 12xy + 9y^2$ 이므로 계수는 12입니다." },
+            { id: 202, unit: "2", question: "다항식 $x^2 - 5x + 6$을 인수분해하면?", type: "objective", options: ["$(x-1)(x-6)$", "$(x-2)(x-3)$", "$(x+2)(x+3)$", "$(x+1)(x+6)$"], answer: 1, explanation: "곱해서 6, 합해서 -5가 되는 두 수는 -2와 -3입니다." },
+
+            // Unit 3
+            { id: 301, unit: "3", question: "이차방정식 $x^2 - 4x + 3 = 0$의 두 근의 합은?", type: "objective", options: ["3", "-4", "4", "-3"], answer: 2, explanation: "$(x-1)(x-3)=0$에서 근은 $x=1$ 또는 $x=3$. 합은 4입니다." },
+            { id: 302, unit: "3", question: "이차방정식 $x^2 - 2x - 1 = 0$의 근은?", type: "objective", options: ["$1 \\pm \\sqrt{2}$", "$-1 \\pm \\sqrt{2}$", "$2 \\pm \\sqrt{2}$", "$1 \\pm 2\\sqrt{2}$"], answer: 0, explanation: "짝수 근의 공식 적용: $x = 1 \\pm \\sqrt{(-1)^2 - (1)(-1)} = 1 \\pm \\sqrt{2}$" },
+
+            // Unit 4
+            { id: 401, unit: "4", question: "이차함수 $y = -2(x-1)^2 + 3$의 꼭짓점의 좌표는?", type: "objective", options: ["(-1, 3)", "(1, 3)", "(1, -3)", "(-1, -3)"], answer: 1, explanation: "$y=a(x-p)^2+q$의 꼭짓점은 $(p,q)$이므로 $(1,3)$입니다." },
+            { id: 402, unit: "4", question: "이차함수 $y = x^2 - 4x + 5$의 축의 방정식은?", type: "objective", options: ["x = -2", "x = 2", "x = 4", "x = -4"], answer: 1, explanation: "$y = (x-2)^2 + 1$로 변형되므로 축의 방정식은 $x=2$입니다." },
+
+            // Unit 5
+            { id: 501, unit: "5", question: "$\\sin 30^\\circ + \\cos 60^\\circ$의 값은?", type: "objective", options: ["1", "$\\frac{1}{2}$", "$\\sqrt{3}$", "$\\frac{\\sqrt{3}}{2}$"], answer: 0, explanation: "$\\sin 30^\\circ = 1/2$, $\\cos 60^\\circ = 1/2$ 이므로 합은 1입니다." },
+            { id: 502, unit: "5", question: "$\\tan 45^\\circ$의 값은?", type: "objective", options: ["0", "$\\frac{1}{2}$", "1", "$\\sqrt{3}$"], answer: 2, explanation: "$\\tan 45^\\circ = 1$ 입니다." },
+
+            // Unit 6
+            { id: 601, unit: "6", question: "한 호에 대한 중심각의 크기가 $80^\\circ$일 때, 원주각의 크기는?", type: "objective", options: ["$160^\\circ$", "$40^\\circ$", "$80^\\circ$", "$20^\\circ$"], answer: 1, explanation: "원주각의 크기는 중심각의 크기의 반이므로 $40^\\circ$입니다." },
+            { id: 602, unit: "6", question: "원에 내접하는 사각형 $ABCD$에서 $\\angle A = 70^\\circ$일 때 마주보는 $\\angle C$의 크기는?", type: "objective", options: ["$110^\\circ$", "$70^\\circ$", "$90^\\circ$", "$120^\\circ$"], answer: 0, explanation: "원에 내접하는 사각형의 대각의 합은 $180^\\circ$이므로 $180^\\circ - 70^\\circ = 110^\\circ$입니다." }
+        ];
+
+        // --- 2. GLOBAL STATE & LOCALSTORAGE ---
+        let currentStudent = null; // { id, name, unitProgress: {}, quizStats: {total, correct}, examStats: {highScore, count}, visualTool: {quad: false, trig: false}, notes: [], lastActive: '' }
+        let allStudents = JSON.parse(localStorage.getItem('math_students_db') || '{}');
+
+        let currentQuizIdx = 0;
+        let activeQuizList = [];
+
+        // Exam State
+        let examQuestions = [];
+        let examCurrentIdx = 0;
+        let examAnswers = [];
+        let examTimer = null;
+        let examTimeRemaining = 900;
+
+        // --- 3. INITIALIZATION & LOGIN ---
+        window.onload = function() {
+            renderConcepts();
+            
+            // Check if student logged in before
+            const savedStudentId = localStorage.getItem('math_current_student_id');
+            if (savedStudentId && allStudents[savedStudentId]) {
+                currentStudent = allStudents[savedStudentId];
+                hideLoginModal();
+                updateUIForCurrentStudent();
+            } else {
+                showLoginModal();
+            }
+
+            initVisualizers();
+            renderMathInElement(document.body);
+        };
+
+        function showLoginModal() {
+            document.getElementById('login-modal').classList.remove('hidden');
+        }
+
+        function hideLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const id = document.getElementById('input-student-id').value.trim();
+            const name = document.getElementById('input-student-name').value.trim();
+
+            if (!id || !name) return;
+
+            loginStudent(id, name);
+        }
+
+        function loginStudent(id, name) {
+            if (!allStudents[id]) {
+                // Create New Profile
+                allStudents[id] = {
+                    id: id,
+                    name: name,
+                    unitProgress: { "1": 0, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0 },
+                    quizStats: { total: 0, correct: 0 },
+                    examStats: { highScore: 0, count: 0 },
+                    visualTool: { quad: false, trig: false },
+                    notes: [],
+                    lastActive: new Date().toLocaleString('ko-KR')
+                };
+            } else {
+                allStudents[id].name = name; // Update name if changed
+                allStudents[id].lastActive = new Date().toLocaleString('ko-KR');
+            }
+
+            currentStudent = allStudents[id];
+            saveStudentsDB();
+            localStorage.setItem('math_current_student_id', id);
+
+            hideLoginModal();
+            updateUIForCurrentStudent();
+            switchTab('dashboard');
+        }
+
+        function loginAsTeacher() {
+            loginStudent('TEACHER', '선생님');
+            switchTab('teacher');
+        }
+
+        function logout() {
+            localStorage.removeItem('math_current_student_id');
+            currentStudent = null;
+            showLoginModal();
+        }
+
+        function saveStudentsDB() {
+            if (currentStudent && currentStudent.id !== 'TEACHER') {
+                currentStudent.lastActive = new Date().toLocaleString('ko-KR');
+                allStudents[currentStudent.id] = currentStudent;
+            }
+            localStorage.setItem('math_students_db', JSON.stringify(allStudents));
+        }
+
+        function updateUIForCurrentStudent() {
+            if (!currentStudent) return;
+
+            document.getElementById('header-user-name').innerText = `${currentStudent.name} 님`;
+            document.getElementById('header-user-id').innerText = currentStudent.id === 'TEACHER' ? '관리자 모드' : `학번: ${currentStudent.id}`;
+            document.getElementById('header-avatar').innerText = currentStudent.name.charAt(0);
+
+            // Dashboard updates
+            document.getElementById('dash-welcome').innerText = `안녕하세요, ${currentStudent.name} 학생! 👋`;
+            document.getElementById('dash-last-login').innerText = `최근 학습: ${currentStudent.lastActive}`;
+
+            document.getElementById('dash-quiz-count').innerText = `${currentStudent.quizStats.total}문제`;
+            const quizAcc = currentStudent.quizStats.total > 0 ? Math.round((currentStudent.quizStats.correct / currentStudent.quizStats.total) * 100) : 0;
+            document.getElementById('dash-quiz-acc').innerText = `${quizAcc}%`;
+
+            document.getElementById('dash-exam-high').innerText = `${currentStudent.examStats.highScore}점 (${currentStudent.examStats.count}회)`;
+
+            let visCount = (currentStudent.visualTool.quad ? 1 : 0) + (currentStudent.visualTool.trig ? 1 : 0);
+            document.getElementById('dash-visual-status').innerText = `${visCount} / 2 완료`;
+
+            document.getElementById('badge-quad-exp').innerText = currentStudent.visualTool.quad ? "체험 완료 ✓" : "미완료";
+            document.getElementById('badge-quad-exp').className = currentStudent.visualTool.quad ? "px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full" : "px-3 py-1 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full";
+
+            document.getElementById('badge-trig-exp').innerText = currentStudent.visualTool.trig ? "체험 완료 ✓" : "미완료";
+            document.getElementById('badge-trig-exp').className = currentStudent.visualTool.trig ? "px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full" : "px-3 py-1 bg-slate-100 text-slate-500 text-xs font-semibold rounded-full";
+
+            // Total Progress Calculation
+            calculateTotalProgress();
+            renderDashboardUnits();
+            updateNoteCount();
+            initQuiz();
+        }
+
+        function calculateTotalProgress() {
+            if(!currentStudent) return;
+
+            // Simple weight: Quiz (40%), Exam (40%), Visual Tools (20%)
+            let quizScore = Math.min(100, (currentStudent.quizStats.total / 12) * 100);
+            let examScore = currentStudent.examStats.highScore;
+            let visualScore = ((currentStudent.visualTool.quad ? 50 : 0) + (currentStudent.visualTool.trig ? 50 : 0));
+
+            let totalPercent = Math.round((quizScore * 0.4) + (examScore * 0.4) + (visualScore * 0.2));
+            document.getElementById('dash-total-progress-text').innerText = `${totalPercent}%`;
+            document.getElementById('dash-total-progress-bar').style.width = `${totalPercent}%`;
+        }
+
+        function renderDashboardUnits() {
+            const grid = document.getElementById('dash-unit-grid');
+            grid.innerHTML = CONCEPTS.map((c, idx) => {
+                const uNum = (idx + 1).toString();
+                const qCount = QUESTION_BANK.filter(q => q.unit === uNum).length;
+                const solved = currentStudent.unitProgress[uNum] || 0;
+                const pct = Math.min(100, Math.round((solved / qCount) * 100));
+
+                return `
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                        <div class="flex justify-between items-center font-bold text-slate-700 text-sm">
+                            <span>${c.unit}</span>
+                            <span class="text-xs ${pct === 100 ? 'text-green-600' : 'text-indigo-600'}">${pct}%</span>
+                        </div>
+                        <div class="w-full bg-slate-200 rounded-full h-2">
+                            <div class="bg-indigo-600 h-2 rounded-full" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="text-[11px] text-slate-500 text-right">푼 문제: ${solved} / ${qCount}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- 4. TAB SWITCHING ---
+        function switchTab(tabId) {
+            ['dashboard', 'concept', 'quiz', 'exam', 'visual', 'notes', 'teacher'].forEach(t => {
+                document.getElementById(`sec-${t}`).classList.add('hidden');
+                document.getElementById(`tab-${t}`).classList.remove('active');
+            });
+
+            document.getElementById(`sec-${tabId}`).classList.remove('hidden');
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+
+            if(tabId === 'visual') {
+                updateQuadratic();
+                updateTrig();
+            } else if(tabId === 'notes') {
+                renderNotes();
+            } else if(tabId === 'teacher') {
+                renderTeacherTable();
+            }
+            renderMathInElement(document.body);
+        }
+
+        // --- 5. CONCEPT SECTION ---
+        function renderConcepts() {
+            const container = document.getElementById('concept-container');
+            container.innerHTML = CONCEPTS.map((c, i) => `
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition">
+                    <div class="bg-slate-50 p-4 font-bold text-indigo-700 flex items-center justify-between border-b cursor-pointer" onclick="toggleConcept(${i})">
+                        <span class="flex items-center gap-2"><i class="fa-solid ${c.icon}"></i> ${c.unit}</span>
+                        <i class="fa-solid fa-chevron-down text-slate-400 text-sm transition-transform" id="c-icon-${i}"></i>
+                    </div>
+                    <div class="p-4 space-y-3 text-sm" id="c-body-${i}">
+                        ${c.items.map(item => `
+                            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+                                <div class="font-semibold text-slate-800 mb-1">▪ ${item.title}</div>
+                                <div class="text-slate-600 leading-relaxed">${item.body}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleConcept(idx) {
+            const body = document.getElementById(`c-body-${idx}`);
+            const icon = document.getElementById(`c-icon-${idx}`);
+            body.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        }
+
+        // --- 6. QUIZ SECTION ---
+        function initQuiz() {
+            loadQuizUnit();
+        }
+
+        function loadQuizUnit() {
+            const unit = document.getElementById('quiz-unit-select').value;
+            if(unit === 'all') {
+                activeQuizList = [...QUESTION_BANK].sort(() => Math.random() - 0.5);
+            } else {
+                activeQuizList = QUESTION_BANK.filter(q => q.unit === unit).sort(() => Math.random() - 0.5);
+            }
+            currentQuizIdx = 0;
+            renderQuizCard();
+        }
+
+        function renderQuizCard() {
+            const card = document.getElementById('quiz-card');
+            if(!activeQuizList.length || currentQuizIdx >= activeQuizList.length) {
+                card.innerHTML = `<div class="text-center py-8">
+                    <p class="text-slate-600 mb-3">현재 선택된 단원의 모든 문제를 해결했습니다!</p>
+                    <button onclick="loadQuizUnit()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-semibold">다시 풀기</button>
+                </div>`;
+                return;
+            }
+
+            const q = activeQuizList[currentQuizIdx];
+            card.innerHTML = `
+                <div class="flex justify-between items-center text-xs font-semibold text-indigo-600 mb-2">
+                    <span>문제 #${currentQuizIdx + 1}</span>
+                    <span>단원 ${q.unit}</span>
+                </div>
+                <div class="text-base font-bold text-slate-800 mb-4">${q.question}</div>
+                <div class="space-y-2 mb-4">
+                    ${q.options.map((opt, idx) => `
+                        <button onclick="checkQuizAnswer(${idx})" class="w-full text-left p-3 rounded-lg border border-slate-200 hover:bg-indigo-50 hover:border-indigo-300 transition flex items-center gap-3">
+                            <span class="w-6 h-6 rounded-full bg-slate-200 text-slate-700 font-bold flex items-center justify-center text-xs">${idx+1}</span>
+                            <span>${opt}</span>
+                        </button>
+                    `).join('')}
+                </div>
+                <div id="quiz-feedback" class="hidden p-4 rounded-lg border text-sm space-y-2"></div>
+            `;
+
+            // Quiz score updating
+            if(currentStudent) {
+                document.getElementById('quiz-total').innerText = currentStudent.quizStats.total;
+                document.getElementById('quiz-correct').innerText = currentStudent.quizStats.correct;
+                const rate = currentStudent.quizStats.total > 0 ? Math.round((currentStudent.quizStats.correct / currentStudent.quizStats.total) * 100) : 0;
+                document.getElementById('quiz-rate').innerText = rate + '%';
+            }
+
+            renderMathInElement(card);
+        }
+
+        function checkQuizAnswer(selected) {
+            const q = activeQuizList[currentQuizIdx];
+            const feedback = document.getElementById('quiz-feedback');
+            const isCorrect = selected === q.answer;
+
+            if (currentStudent && currentStudent.id !== 'TEACHER') {
+                currentStudent.quizStats.total++;
+                if (isCorrect) {
+                    currentStudent.quizStats.correct++;
+                    currentStudent.unitProgress[q.unit] = (currentStudent.unitProgress[q.unit] || 0) + 1;
+                } else {
+                    saveToNotes(q);
+                }
+                saveStudentsDB();
+                updateUIForCurrentStudent();
+            }
+
+            feedback.classList.remove('hidden', 'bg-green-50', 'border-green-200', 'text-green-800', 'bg-red-50', 'border-red-200', 'text-red-800');
+
+            if(isCorrect) {
+                feedback.classList.add('bg-green-50', 'border-green-200', 'text-green-800');
+                feedback.innerHTML = `<div class="font-bold flex items-center gap-2"><i class="fa-solid fa-circle-check text-green-600"></i> 정답입니다!</div><div>${q.explanation}</div>`;
+            } else {
+                feedback.classList.add('bg-red-50', 'border-red-200', 'text-red-800');
+                feedback.innerHTML = `<div class="font-bold flex items-center gap-2"><i class="fa-solid fa-circle-xmark text-red-600"></i> 오답입니다. (정답: ${q.answer + 1}번)</div><div>${q.explanation}</div>`;
+            }
+
+            feedback.innerHTML += `<button onclick="nextQuizQuestion()" class="mt-3 px-4 py-1.5 bg-slate-800 text-white rounded text-xs font-semibold">다음 문제</button>`;
+            renderMathInElement(feedback);
+        }
+
+        function nextQuizQuestion() {
+            currentQuizIdx++;
+            renderQuizCard();
+        }
+
+        // --- 7. EXAM SECTION ---
+        function startExam() {
+            examQuestions = [...QUESTION_BANK].sort(() => Math.random() - 0.5).slice(0, 10);
+            examCurrentIdx = 0;
+            examAnswers = new Array(10).fill(null);
+            examTimeRemaining = 900;
+
+            document.getElementById('exam-start-box').classList.add('hidden');
+            document.getElementById('exam-result-box').classList.add('hidden');
+            document.getElementById('exam-run-box').classList.remove('hidden');
+
+            startExamTimer();
+            renderExamQuestion();
+        }
+
+        function startExamTimer() {
+            clearInterval(examTimer);
+            examTimer = setInterval(() => {
+                examTimeRemaining--;
+                const min = Math.floor(examTimeRemaining / 60);
+                const sec = examTimeRemaining % 60;
+                document.getElementById('exam-timer').innerText = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+                
+                if(examTimeRemaining <= 0) {
+                    clearInterval(examTimer);
+                    finishExam();
+                }
+            }, 1000);
+        }
+
+        function renderExamQuestion() {
+            const q = examQuestions[examCurrentIdx];
+            document.getElementById('exam-progress').innerText = `${examCurrentIdx + 1} / 10`;
+            document.getElementById('exam-unit-title').innerText = `단원 ${q.unit}`;
+
+            const body = document.getElementById('exam-question-body');
+            body.innerHTML = `
+                <div class="text-base font-bold text-slate-800">${q.question}</div>
+                <div class="space-y-2">
+                    ${q.options.map((opt, i) => `
+                        <label class="flex items-center p-3 border rounded-lg hover:bg-slate-50 cursor-pointer ${examAnswers[examCurrentIdx] === i ? 'bg-indigo-50 border-indigo-400' : 'border-slate-200'}">
+                            <input type="radio" name="exam-opt" value="${i}" ${examAnswers[examCurrentIdx] === i ? 'checked' : ''} onchange="selectExamOption(${i})" class="mr-3 text-indigo-600 focus:ring-indigo-500">
+                            <span>${opt}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+
+            document.getElementById('btn-exam-prev').disabled = examCurrentIdx === 0;
+            document.getElementById('btn-exam-next').innerText = examCurrentIdx === 9 ? '제출하기' : '다음';
+            renderMathInElement(body);
+        }
+
+        function selectExamOption(optionIdx) {
+            examAnswers[examCurrentIdx] = optionIdx;
+            renderExamQuestion();
+        }
+
+        function prevExamQ() {
+            if(examCurrentIdx > 0) {
+                examCurrentIdx--;
+                renderExamQuestion();
+            }
+        }
+
+        function nextExamQ() {
+            if(examCurrentIdx < 9) {
+                examCurrentIdx++;
+                renderExamQuestion();
+            } else {
+                finishExam();
+            }
+        }
+
+        function finishExam() {
+            clearInterval(examTimer);
+            let score = 0;
+            let analysisHtml = '';
+
+            examQuestions.forEach((q, idx) => {
+                const userAns = examAnswers[idx];
+                const isCorrect = userAns === q.answer;
+                if(isCorrect) score += 10;
+                else saveToNotes(q);
+
+                analysisHtml += `<div class="p-2 border-b flex justify-between items-center text-xs">
+                    <span>Q${idx+1}. 단원 ${q.unit}</span>
+                    <span class="${isCorrect ? 'text-green-600 font-bold' : 'text-red-500 font-bold'}">${isCorrect ? '정답 (+10점)' : '오답'}</span>
+                </div>`;
+            });
+
+            // Update student stats
+            if (currentStudent && currentStudent.id !== 'TEACHER') {
+                currentStudent.examStats.count++;
+                if (score > currentStudent.examStats.highScore) {
+                    currentStudent.examStats.highScore = score;
+                }
+                saveStudentsDB();
+                updateUIForCurrentStudent();
+            }
+
+            const timeSpentSec = 900 - examTimeRemaining;
+            const min = Math.floor(timeSpentSec / 60);
+            const sec = timeSpentSec % 60;
+
+            document.getElementById('exam-score').innerText = `${score}점`;
+            document.getElementById('exam-time-taken').innerText = `${min}분 ${sec}초`;
+            document.getElementById('exam-analysis').innerHTML = analysisHtml;
+
+            document.getElementById('exam-run-box').classList.add('hidden');
+            document.getElementById('exam-result-box').classList.remove('hidden');
+        }
+
+        function resetExam() {
+            document.getElementById('exam-result-box').classList.add('hidden');
+            document.getElementById('exam-start-box').classList.remove('hidden');
+        }
+
+        // --- 8. VISUALIZATION SIMULATORS ---
+        function initVisualizers() {
+            updateQuadratic();
+            updateTrig();
+        }
+
+        function updateQuadratic() {
+            if (currentStudent && currentStudent.id !== 'TEACHER') {
+                currentStudent.visualTool.quad = true;
+                saveStudentsDB();
+                document.getElementById('badge-quad-exp').innerText = "체험 완료 ✓";
+                document.getElementById('badge-quad-exp').className = "px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full";
+            }
+
+            const a = parseFloat(document.getElementById('slider-a').value);
+            const p = parseFloat(document.getElementById('slider-p').value);
+            const q = parseFloat(document.getElementById('slider-q').value);
+
+            document.getElementById('val-a').innerText = a;
+            document.getElementById('val-p').innerText = p;
+            document.getElementById('val-q').innerText = q;
+
+            let signP = p >= 0 ? `- ${p}` : `+ ${Math.abs(p)}`;
+            let signQ = q >= 0 ? `+ ${q}` : `- ${Math.abs(q)}`;
+            document.getElementById('quad-formula').innerText = `y = ${a}(x ${signP})² ${signQ}`;
+            document.getElementById('quad-vertex').innerText = `(${p}, ${q})`;
+            document.getElementById('quad-axis').innerText = `x = ${p}`;
+
+            const canvas = document.getElementById('quadCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const scale = 25;
+            const cx = width / 2;
+            const cy = height / 2;
+
+            ctx.strokeStyle = '#334155';
+            ctx.lineWidth = 1;
+            for(let x = 0; x < width; x += scale) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+            }
+            for(let y = 0; y < height; y += scale) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+            }
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(width, cy); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, height); ctx.stroke();
+
+            ctx.strokeStyle = '#6366f1';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+
+            let first = true;
+            for(let pixelX = 0; pixelX <= width; pixelX += 2) {
+                let realX = (pixelX - cx) / scale;
+                let realY = a * Math.pow(realX - p, 2) + q;
+                let pixelY = cy - realY * scale;
+
+                if(first) {
+                    ctx.moveTo(pixelX, pixelY);
+                    first = false;
+                } else {
+                    ctx.lineTo(pixelX, pixelY);
+                }
+            }
+            ctx.stroke();
+
+            let vx = cx + p * scale;
+            let vy = cy - q * scale;
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(vx, vy, 6, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function updateTrig() {
+            if (currentStudent && currentStudent.id !== 'TEACHER') {
+                currentStudent.visualTool.trig = true;
+                saveStudentsDB();
+                document.getElementById('badge-trig-exp').innerText = "체험 완료 ✓";
+                document.getElementById('badge-trig-exp').className = "px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full";
+            }
+
+            const deg = parseInt(document.getElementById('slider-deg').value);
+            document.getElementById('val-deg').innerText = deg + '°';
+
+            const rad = deg * Math.PI / 180;
+            const sinVal = Math.sin(rad);
+            const cosVal = Math.cos(rad);
+            const tanVal = Math.tan(rad);
+
+            document.getElementById('trig-sin').innerText = sinVal.toFixed(3);
+            document.getElementById('trig-cos').innerText = cosVal.toFixed(3);
+            document.getElementById('trig-tan').innerText = tanVal.toFixed(3);
+
+            const canvas = document.getElementById('trigCanvas');
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+
+            ctx.clearRect(0, 0, width, height);
+
+            const hypotenuse = 200;
+            const originX = 80;
+            const originY = height - 60;
+
+            const baseLen = hypotenuse * cosVal;
+            const heightLen = hypotenuse * sinVal;
+
+            const pA = { x: originX, y: originY };
+            const pB = { x: originX + baseLen, y: originY };
+            const pC = { x: originX + baseLen, y: originY - heightLen };
+
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.1)';
+            ctx.beginPath();
+            ctx.moveTo(pA.x, pA.y);
+            ctx.lineTo(pB.x, pB.y);
+            ctx.lineTo(pC.x, pC.y);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            ctx.strokeStyle = '#f59e0b';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(pA.x, pA.y, 40, 0, -rad, true);
+            ctx.stroke();
+
+            ctx.strokeStyle = '#94a3b8';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.rect(pB.x - 15, pB.y - 15, 15, 15);
+            ctx.stroke();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '14px Pretendard';
+            ctx.fillText(`θ = ${deg}°`, pA.x + 50, pA.y - 10);
+
+            ctx.fillStyle = '#38bdf8';
+            ctx.fillText(`빗변 (1)`, (pA.x + pC.x)/2 - 25, (pA.y + pC.y)/2 - 10);
+
+            ctx.fillStyle = '#f43f5e';
+            ctx.fillText(`높이 (${sinVal.toFixed(2)})`, pB.x + 10, (pB.y + pC.y)/2);
+
+            ctx.fillStyle = '#a855f7';
+            ctx.fillText(`밑변 (${cosVal.toFixed(2)})`, (pA.x + pB.x)/2 - 20, pB.y + 25);
+        }
+
+        // --- 9. INCORRECT NOTES LOGIC ---
+        function saveToNotes(q) {
+            if(!currentStudent || currentStudent.id === 'TEACHER') return;
+            if(!currentStudent.notes.some(n => n.id === q.id)) {
+                currentStudent.notes.push(q);
+                saveStudentsDB();
+                updateNoteCount();
+            }
+        }
+
+        function updateNoteCount() {
+            if(currentStudent && currentStudent.notes) {
+                document.getElementById('note-count').innerText = currentStudent.notes.length;
+            }
+        }
+
+        function renderNotes() {
+            const container = document.getElementById('notes-container');
+            if(!currentStudent || !currentStudent.notes.length) {
+                container.innerHTML = `<div class="text-center py-12 text-slate-400">오답노트가 비어있습니다. 문제를 풀고 틀린 내용을 확인해 보세요.</div>`;
+                return;
+            }
+
+            container.innerHTML = currentStudent.notes.map((q) => `
+                <div class="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-3 relative">
+                    <button onclick="removeNote(${q.id})" class="absolute top-4 right-4 text-slate-400 hover:text-red-500 text-sm">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                    <div class="text-xs font-bold text-indigo-600">단원 ${q.unit}</div>
+                    <div class="font-bold text-slate-800">${q.question}</div>
+                    <div class="bg-white p-3 rounded-lg border border-slate-200 text-sm space-y-1">
+                        <div class="text-green-700 font-semibold">정답: ${q.options[q.answer]}</div>
+                        <div class="text-slate-600 text-xs">${q.explanation}</div>
+                    </div>
+                </div>
+            `).join('');
+            renderMathInElement(container);
+        }
+
+        function removeNote(id) {
+            if(!currentStudent) return;
+            currentStudent.notes = currentStudent.notes.filter(n => n.id !== id);
+            saveStudentsDB();
+            updateNoteCount();
+            renderNotes();
+        }
+
+        function clearNotes() {
+            if(confirm('오답노트 전체를 삭제하시겠습니까?')) {
+                if(!currentStudent) return;
+                currentStudent.notes = [];
+                saveStudentsDB();
+                updateNoteCount();
+                renderNotes();
+            }
+        }
+
+        // --- 10. TEACHER / ADMIN MODE LOGIC ---
+        function renderTeacherTable() {
+            const table = document.getElementById('teacher-student-table');
+            const studentKeys = Object.keys(allStudents).filter(k => k !== 'TEACHER');
+
+            document.getElementById('teacher-student-count').innerText = studentKeys.length;
+
+            if (studentKeys.length === 0) {
+                table.innerHTML = `<tr><td colspan="7" class="text-center p-6 text-slate-400">등록된 학생 데이터가 없습니다.</td></tr>`;
+                return;
+            }
+
+            table.innerHTML = studentKeys.map(k => {
+                const s = allStudents[k];
+                // calculate progress
+                let quizScore = Math.min(100, (s.quizStats.total / 12) * 100);
+                let examScore = s.examStats.highScore;
+                let visualScore = ((s.visualTool.quad ? 50 : 0) + (s.visualTool.trig ? 50 : 0));
+                let totalPct = Math.round((quizScore * 0.4) + (examScore * 0.4) + (visualScore * 0.2));
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 font-semibold text-slate-700">${s.id}</td>
+                        <td class="p-3 font-bold text-slate-800">${s.name}</td>
+                        <td class="p-3">
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-bold w-8">${totalPct}%</span>
+                                <div class="w-24 bg-slate-200 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-indigo-600 h-2 rounded-full" style="width: ${totalPct}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="p-3 text-xs">${s.quizStats.total}문제 (${s.quizStats.correct}정답)</td>
+                        <td class="p-3 text-xs font-bold text-indigo-600">${s.examStats.highScore}점 (${s.examStats.count}회)</td>
+                        <td class="p-3 text-xs text-slate-500">${s.lastActive || '-'}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="switchToStudent('${s.id}')" class="px-2.5 py-1 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-xs font-bold border border-indigo-200">
+                                전환하기
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function switchToStudent(id) {
+            if (allStudents[id]) {
+                currentStudent = allStudents[id];
+                localStorage.setItem('math_current_student_id', id);
+                updateUIForCurrentStudent();
+                switchTab('dashboard');
+            }
+        }
+
+        function clearAllStudentsData() {
+            if (confirm('모든 학생 기록을 삭제하고 초기화하시겠습니까?')) {
+                allStudents = {};
+                localStorage.removeItem('math_students_db');
+                localStorage.removeItem('math_current_student_id');
+                currentStudent = null;
+                showLoginModal();
+            }
+        }
+    </script>
+</body>
+</html>
